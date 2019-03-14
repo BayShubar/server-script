@@ -1,0 +1,59 @@
+version: "3"
+services:
+
+  web:
+    image: "hub.egistic.kz/nginx:latest"
+    restart: "always"
+    expose:
+      - "80"
+    environment:
+      - "DOMAIN_NAME=${DOMAIN_NAME}"
+      - "PROXY_PASS=http://app:80"
+    volumes:
+      - "../nginx/conf.d:/etc/nginx/conf.d/templates"
+    networks:
+      - "default"
+    labels:
+      - "traefik.frontend.rule=Host:${DOMAIN_NAME}"
+    command: /bin/bash -c "envsubst '$${DOMAIN_NAME} $${PROXY_PASS}' < /etc/nginx/conf.d/templates/conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
+
+  app:
+    image: "hub.egistic.kz/map_proxy:latest"
+    restart: "always"
+    expose:
+      - "80"
+    networks:
+      - "default"
+      - "postgis"
+    command: [ "python3", "manage.py", "runserver", "[::]:80" ]
+
+networks:
+  default:
+    external:
+      name: "django"
+
+volumes:
+  data:
+    external: false
+  rasters:
+    external: true
+  tomcat:
+    external: false
+
+#docker run \
+#  -it \
+#  --rm \
+#  -e DEFAULT_DB_HOST=db_default \
+#  -e DEFAULT_DB_PORT=5432 \
+#  -e DEFAULT_DB_NAME=egistic_2.0 \
+#  -e DEFAULT_DB_USER=docker \
+#  -e DEFAULT_DB_PASSWORD=docker \
+#  -e WEATHERS_DB_HOST=db_weather \
+#  -e WEATHERS_DB_PORT=5432 \
+#  -e WEATHERS_DB_NAME=meteo \
+#  -e WEATHERS_DB_USER=docker \
+#  -e WEATHERS_DB_PASSWORD=docker \
+#  --network=postgis \
+#  --name egistic-puthon \
+#  egistic/django:latest \
+#  python3 manage.py makemigrations
